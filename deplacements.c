@@ -1,21 +1,9 @@
 
-/*
-Tous les temps sont exprimes en ms.
-Toutes les distances sont exprimees en mm.
-Convention moteurs :
- - motorA = moteur droit
- - motorB = moteur gauche
-*/
 
-/*
-A faire pour la suite : ne jamais modifier les valeurs de nMotorEncoder[], sauf a l'initialisation.
+// -------------------------------------------------------------------------------------------------------
+// ---------------------------------------- Variables globales privees -----------------------------------
+// -------------------------------------------------------------------------------------------------------
 
-Le sonar avant doit etre nomme "SonarAvant", sinon le programme ne foncitonnera pas.
-*/
-
-// A ajouter au debut du programme principal c.
-
-// Variables globales privees.
 float distance_faite;
 float distance_a_faire;
 float rotation_faite;
@@ -23,6 +11,13 @@ float rotation_a_faire;
 char mvt_fait = 0;
 char obstacle_rencontre_private = 0;
 
+
+
+// -------------------------------------------------------------------------------------------------------
+// ---------------------------------------- Variables globales publiques ---------------------------------
+// -------------------------------------------------------------------------------------------------------
+
+// Ces variables peuvent (et doivent pour certaines) etre modifiees dans le task main.
 
 // Puissance maximale du moteur pour lequel il ne bouge pas. Si on demande une puissance > offset_motor, le moteur peut deplacer le robot.
 // Seulement utile pour les briques matrix et tetrix.
@@ -45,7 +40,7 @@ float temp_dist_arriere = 60;
 int dist_detect_avant = 17;
 int dist_detect_arriere = 15;
 
-// Saturation sur le derivee de la puissance envoyee aux moteurs.
+// Saturation sur la derivee de la puissance envoyee aux moteurs.
 float saturation_dpuiss_avant = 3.0;
 float saturation_dpuiss_arriere = 3.0;
 float saturation_dpuiss_rotation = 3.0;
@@ -63,7 +58,8 @@ int reverse = 1;
 
 void avance_nulle_obstacle(float distance, int encA, int encB)
 {
-	// Pas de check, cette fonction est la pour eviter la discontinuite de vitesse dans les moteurs.
+	// Pas de check pour savoir si il a un robot devant.
+	// Cette fonction est la pour eviter la discontinuite de vitesse dans les moteurs, et arrete le robot avant de percuter celui de devant.
 	int const nbr_tranches=1;
 	int tranches[]={600};
 	float coeff[] = {4.0, 6.0};
@@ -102,12 +98,15 @@ void avance_nulle_obstacle(float distance, int encA, int encB)
 	{
 				dist = (abs(nMotorEncoder[motorB]-encB)*(float)(PI*rayon)/(float)360 + abs(nMotorEncoder[motorA]-encA)*(float)(PI*rayon)/(float)360)/2.0;
 				
-				// Ajoute pour la version avec les tasks.
+				// Mise a jour des variables globales
 				distance_faite = dist;
 				erreur = d - dist;
 				old_puiss = puiss;
 				
-				// Calcul de la puissance sur les moteurs.
+				// Calcul de la puissance sur les moteurs, relations venant de l'automatique lineaire.
+				/* -----------------------------------------------------------------------------------
+				---------------------------- EQUATIONS DE RECURRENCES --------------------------------
+				----------------------------------------------------------------------------------- */
 				if(matrix_or_tetrix == 0)
 				{
 					puiss =(erreur*0.294-old_erreur*0.290)/denom+offset_motor;
@@ -128,7 +127,6 @@ void avance_nulle_obstacle(float distance, int encA, int encB)
 						puiss = old_puiss-saturation_dpuiss_avant;
 				}
 				
-				//puiss =(erreur*1.13-old_erreur*1.12 + (puiss-12)*1.8)/3.0+12;
 				old_erreur = erreur;
 				motor[motorA] = reverse * (int) puiss;
 				motor[motorB] = reverse * (int) puiss;
@@ -149,7 +147,8 @@ void avance_nulle_obstacle(float distance, int encA, int encB)
 
 void recule_nulle_obstacle(float distance, int encA, int encB)
 {
-	// Pas de check, cette fonction est la pour eviter la discontinuite de vitesse dans les moteurs.
+	// Pas de check pour savoir si il a un robot devant.
+	// Cette fonction est la pour eviter la discontinuite de vitesse dans les moteurs, et arrete le robot avant de percuter celui de devant.
 	int const nbr_tranches=1;
 	int tranches[]={600};
 	float coeff[] = {4.5, 9.0};
@@ -192,12 +191,15 @@ void recule_nulle_obstacle(float distance, int encA, int encB)
 	{
 				dist = (abs(nMotorEncoder[motorB]-encB)*(float)(PI*rayon)/(float)360 + abs(nMotorEncoder[motorA]-encA)*(float)(PI*rayon)/(float)360)/2.0;
 				
-				// Ajoute pour la version avec les tasks.
+				// Mise a jour des variables globales
 				distance_faite = dist;
 				erreur = d - dist;
 				old_puiss = puiss;
 				
-				// Calcul de la puissance sur les moteurs.
+				// Calcul de la puissance sur les moteurs, relations venant de l'automatique lineaire.
+				/* -----------------------------------------------------------------------------------
+				---------------------------- EQUATIONS DE RECURRENCES --------------------------------
+				----------------------------------------------------------------------------------- */
 				if(matrix_or_tetrix == 0)
 				{
 					puiss =(erreur*0.294-old_erreur*0.290)/denom+offset_motor;
@@ -218,7 +220,6 @@ void recule_nulle_obstacle(float distance, int encA, int encB)
 						puiss = old_puiss-saturation_dpuiss_arriere;
 				}
 				
-				//puiss =(erreur*1.13-old_erreur*1.12 + (puiss-12)*1.8)/3.0+12;
 				old_erreur = erreur;
 				motor[motorA] = reverse * (int) -puiss;
 				motor[motorB] = reverse * (int) -puiss;
@@ -274,11 +275,10 @@ void avance_nulle_private(float distance)
 
 		int encA_old = encA;
 		int encB_old = encB;
+		
+		// Sert a detecter si les roues ne tournent plus car bloquees. Ne fonctionne pas vraiment, depreciated.
+		// A compenser avec les timers.
 		char compte_arret = 0;
-
-		// Pour detecter si le robot arrive ?? faire tourner ses roues ou non.
-		//int encA_old = encA;
-		//int encB_old = encB;
 
 		float dist = 0;
 		float puiss = 0;
@@ -327,7 +327,7 @@ void avance_nulle_private(float distance)
 			}
 			else
 			{
-				// Voir si on garde la detection !!! Pas sur avec tous les elements ajoutes.
+				// Voir si on garde la detection !!! Pas sur avec tous les elements ajoutes. A compenser avec les timers je pense.
 				// Detection pour savoir si on a cogne contre un mur, auquel cas on est a l'arret, les roues immobiles.
 				if(abs(nMotorEncoder[motorA] - encA_old) < 3 || abs(nMotorEncoder[motorB] - encB_old) < 3)
 				{
@@ -352,8 +352,11 @@ void avance_nulle_private(float distance)
 				erreur = d - dist;
 				old_puiss = puiss;
 				
-				//puiss =(erreur*5.0-old_erreur*3.5 + (puiss-12)*1.0)/50.0+12;
-				//puiss =(erreur*1.13-old_erreur*1.12 + (puiss-12)*1.8)/6.0+12;
+				
+				// Calcul de la puissance sur les moteurs, relations venant de l'automatique lineaire.
+				/* -----------------------------------------------------------------------------------
+				---------------------------- EQUATIONS DE RECURRENCES --------------------------------
+				----------------------------------------------------------------------------------- */
 				if(matrix_or_tetrix == 0)
 				{
 					puiss =(erreur*0.294-old_erreur*0.290)/denom+offset_motor;
@@ -374,8 +377,6 @@ void avance_nulle_private(float distance)
 						puiss = old_puiss-saturation_dpuiss_avant;
 				}
 				
-				//puiss =(erreur*1.13-old_erreur*1.12 + (puiss-12)*1.8)/3.0+12;
-				//nxtDisplayTextLine(1, "puiss = %f", puiss);
 				old_erreur = erreur;
 				motor[motorA] = reverse * (int) puiss;
 				motor[motorB] = reverse * (int) puiss;
@@ -507,6 +508,11 @@ void recule_nulle_private(float distance)
 				erreur = d - dist;
 				old_puiss = puiss;
 				
+				
+				// Calcul de la puissance sur les moteurs, relations venant de l'automatique lineaire.
+				/* -----------------------------------------------------------------------------------
+				---------------------------- EQUATIONS DE RECURRENCES --------------------------------
+				----------------------------------------------------------------------------------- */				
 				if(matrix_or_tetrix == 0)
 				{
 					puiss =(erreur*0.294-old_erreur*0.290)/denom+offset_motor;
@@ -548,7 +554,7 @@ void recule_nulle_private(float distance)
 
 
 // -----------------------------------------------------------------------------------------------------------------------------------------------------
-// ------------------------------------------------------------- Tasks pour les mouvements -------------------------------------------------------------
+// ------------------------------------------------ Tasks et fonctions publiques de base pour pour les mouvements --------------------------------------
 // -----------------------------------------------------------------------------------------------------------------------------------------------------
 
 task avance_nulleT()
@@ -575,6 +581,7 @@ void avance_nulle(float distance, float *distance_parcourue, char *done, char *o
 	if(temps == 0)
 	{
 		// On ne fait rien d'autre qu'avancer. A remarquer qu'aucune information n'est retournee. 
+		//Les variables globales sont deja modifiees dans les fonctions appelees.
 		// On ne donne donc rien sur done ni sur distance_parcourue.
 		avance_nulle_private(distance);
 		if(mvt_fait == 2)
@@ -629,6 +636,7 @@ void recule_nulle(float distance, float *distance_parcourue, char *done, char *o
 	if(temps == 0)
 	{
 		// On ne fait rien d'autre qu'avancer. A remarquer qu'aucune information n'est retournee. 
+		//Les variables globales sont deja modifiees dans les fonctions appelees.
 		// On ne donne donc rien sur done ni sur distance_parcourue.
 		recule_nulle_private(distance);
 		if(mvt_fait == 2)
@@ -664,8 +672,13 @@ void recule_nulle(float distance, float *distance_parcourue, char *done, char *o
 
 
 // ----------------------------------------------------------------------------------------------------------------------------------
-// --------------------------------------------------- Fonctions de base pour avancer / reculler  -----------------------------------
+// --------------------------------------------------- Fonctions simples pour avancer / reculler  -----------------------------------
 // ----------------------------------------------------------------------------------------------------------------------------------
+
+/*
+Ces fonctions seront le plus couramment appelees par les utilisateurs. 
+*/
+
 
 float distance_a_faire_anyway;
 float distance_parcourue_anyway;
@@ -687,12 +700,17 @@ task avance_nulle_anywayT()
 
 void avance_nulle_anyway(float distance, float *distance_parcourue, char *done, char *obstacle_rencontre, int temps = 0, char offset = 100)
 {
-	// fonction qui fait avancer le robot de la distance donnee. 
-	// Elle sert juste a gerer les obstacles de maniere plus simple. C'est a dire que si un obstacle est rencontre, elle attend et retente de repartir.
-	// Pas de gestion des impossibilites de deplacement.
+	// Fonction qui fait avancer le robot de la distance donnee.
+	// Cette fonction s'arrete toujours au bout du temps donne si il est non nul.
+	// Elle sert juste a gerer les obstacles de maniere plus simple. C'est a dire que si un obstacle est rencontre, elle s'arrete, attend et retente de repartir.
+	// Pas de gestion des impossibilites de deplacement (n'arrive pas passer une bascule car les moteurs n'ont pas assez de puissance).
 	distance_a_faire_anyway = distance;
 	offset_anyway = offset;
 	distance_parcourue_anyway = 0.0;
+	
+	
+	// ATTENTION, NON PRISE EN COMPTE DU TEMPS = -1
+	// Cas temps infini.
 	if(temps == 0)
 	{
 		float distance_parcourue_temp = distance_parcourue_anyway;
@@ -703,9 +721,10 @@ void avance_nulle_anyway(float distance, float *distance_parcourue, char *done, 
 			wait1Msec(10);
 		}while(obstacle_rencontre_anyway == 1 && done_anyway == 0);
 	}
+	// Ou pas
 	else
 	{
-		temps_anyway = temps-100;
+		temps_anyway = temps-100; // Dans le cas ou le robot s'arrete, on recupere la fin du mouvement (et des tours de roues) meme si la consigne est a 0.
 		startTask(avance_nulle_anywayT);
 		wait1Msec(temps);
 		stopTask(avance_nulle_anywayT);
@@ -727,9 +746,6 @@ task recule_nulle_anywayT()
 
 void recule_nulle_anyway(float distance, float *distance_parcourue, char *done, char *obstacle_rencontre, int temps = 0, char offset = 100)
 {
-	// fonction qui fait avancer le robot de la distance donnee. 
-	// Elle sert juste a gerer les obstacles de maniere plus simple. C'est a dire que si un obstacle est rencontre, elle attend et retente de repartir.
-	// Pas de gestion des impossibilites de deplacement.
 	distance_a_faire_anyway = distance;
 	offset_anyway = offset;
 	distance_parcourue_anyway = 0.0;
@@ -752,6 +768,10 @@ void recule_nulle_anyway(float distance, float *distance_parcourue, char *done, 
 	*done = done_anyway;
 	*obstacle_rencontre = obstacle_rencontre_anyway;
 }
+
+
+
+// FONCTIONS ENCORE JAMAIS TESTEES. A VOIR SI VOUS VOULEZ LES GARDER.
 
 float distance_a_faire_fairplay;
 float distance_parcourue_fairplay;
@@ -781,9 +801,13 @@ task avance_nulle_fairplayT()
 
 void avance_nulle_fairplay(float distance, float *distance_parcourue, char *done, char *obstacle_rencontre, int temps = 0, char offset = 100)
 {
-	// fonction qui fait avancer le robot de la distance donnee. 
-	// Elle sert juste a gerer les obstacles de maniere plus simple. C'est a dire que si un obstacle est rencontre, elle attend et retente de repartir.
-	// Pas de gestion des impossibilites de deplacement.
+	// Fonction qui fait avancer le robot de la distance donnee.
+	// Cette fonction s'arrete toujours au bout du temps donne si il est non nul.
+	// Elle sert juste a gerer les obstacles de maniere plus simple. C'est a dire que si un obstacle est rencontre, elle s'arrete, attend et retente de repartir.
+	// Pas de gestion des impossibilites de deplacement (n'arrive pas passer une bascule car les moteurs n'ont pas assez de puissance).
+	
+	// Si un obstacle est rencontre, la fonction fait reculer le robot de distance_fairplay puis reavance en untilisant avance_anyway.
+	
 	distance_a_faire_fairplay = distance;
 	offset_fairplay = offset;
 	distance_parcourue_fairplay2 = 0.0;
@@ -801,7 +825,7 @@ void avance_nulle_fairplay(float distance, float *distance_parcourue, char *done
 	}
 	else
 	{
-		temps_fairplay = (float)temps/3.0-2100;
+		temps_fairplay = ((float)temps-2100.0)/3.0; // Decoupage du temps en 3 parties, car on peut s'arreter si oon rencontre un autre robot.
 		startTask(avance_nulle_fairplayT);
 		wait1Msec(temps);
 		stopTask(avance_nulle_fairplayT);
@@ -830,9 +854,13 @@ task recule_nulle_fairplayT()
 
 void recule_nulle_fairplay(float distance, float *distance_parcourue, char *done, char *obstacle_rencontre, int temps = 0, char offset = 100)
 {
-	// fonction qui fait avancer le robot de la distance donnee. 
-	// Elle sert juste a gerer les obstacles de maniere plus simple. C'est a dire que si un obstacle est rencontre, elle attend et retente de repartir.
-	// Pas de gestion des impossibilites de deplacement.
+	// Fonction qui fait reculer le robot de la distance donnee.
+	// Cette fonction s'arrete toujours au bout du temps donne si il est non nul.
+	// Elle sert juste a gerer les obstacles de maniere plus simple. C'est a dire que si un obstacle est rencontre, elle s'arrete, attend et retente de repartir.
+	// Pas de gestion des impossibilites de deplacement (n'arrive pas passer une bascule car les moteurs n'ont pas assez de puissance).
+	
+	// Si un obstacle est rencontre, la fonction fait avancer le robot de distance_fairplay puis reavance en untilisant recule_anyway.
+	
 	distance_a_faire_fairplay = distance;
 	offset_fairplay = offset;
 	distance_parcourue_fairplay2 = 0.0;
@@ -850,7 +878,7 @@ void recule_nulle_fairplay(float distance, float *distance_parcourue, char *done
 	}
 	else
 	{
-		temps_fairplay = (float)temps/3.0-2100;
+		temps_fairplay = ((float)temps-2100.0)/3.0;
 		startTask(recule_nulle_fairplayT);
 		wait1Msec(temps);
 		stopTask(recule_nulle_fairplayT);
@@ -867,6 +895,8 @@ void recule_nulle_fairplay(float distance, float *distance_parcourue, char *done
 
 void turnDeg_private(int degree, char droit)
 {
+	// Gere la rotation sur place du robot. A ne pas appeler dans le main.
+	
 	// droit = 0 ; on tourne a gauche
 	// droit = 1 ; on tourne a droite
   //reinitialisation des encodeurs
@@ -880,6 +910,7 @@ void turnDeg_private(int degree, char droit)
 	int encA_old = encA;
 	int encB_old = encB;
 
+	// Variables pour detecter si les roues sont bloquees ou non. Ne fonctionne pas vraiment, le timer est plus sur.
 	char compte_arretA = 0;
 	char compte_arretB = 0;
 	
@@ -894,7 +925,6 @@ void turnDeg_private(int degree, char droit)
 
   //calcul de "tickgoal"
   float alpha=(entraxe/(2*rayon));			//alpha theorique
-  // int alpha=expe									//alpha experimental ?? determiner avec la batterie enti?¡§rement charg??
   int tickGoal = alpha*degree;
 
   // Asservissement des roues.
@@ -902,12 +932,11 @@ void turnDeg_private(int degree, char droit)
   
   float rot = 0.0;
 
-  //comme les deux moteurs riquent d'aller ?? des vitesses l??g?¡§rement differente
-  //on teste les deux encodeurs separement.
+	// Mouvement
   while(abs(nMotorEncoder[motorA]-encA) < tickGoal || abs(nMotorEncoder[motorB]-encB) < tickGoal)
   {
 	
-	// Detecte si les moteurs sont bloques.
+	// Detecte si les moteurs sont bloques. DEPRECIATED. Un timer est plus sur.
 	if(abs(nMotorEncoder[motorA]-encA_old) <= 3)
 		compte_arretA++;
 	else
@@ -926,16 +955,18 @@ void turnDeg_private(int degree, char droit)
 	}
 
 	// Ajoute pour la version avec les tasks.
+	// Met a jour les variables globales.
 	rot = (float)(abs(nMotorEncoder[motorA]-encA)+abs(nMotorEncoder[motorB]-encB))/2.0/alpha;
 	rotation_faite = rot;
 	old_puissA = puissA;
 	old_puissB = puissB;
 	
+	// Calcul de l'erreur
 	erreurA = tickGoal-abs(nMotorEncoder[motorA]-encA)*(float)(PI*rayon)/(float)360;
 	erreurB = tickGoal-abs(nMotorEncoder[motorB]-encB)*(float)(PI*rayon)/(float)360;
 	
 
-	
+	// Calcul de la puissance moteur
 	if(matrix_or_tetrix == 0)
 	{
 		puissA =(erreurA*0.294-old_erreurA*0.290)/denom+offset_motor;
@@ -983,6 +1014,7 @@ void turnDeg_private(int degree, char droit)
 		motor[motorA] = reverse * puissA;
 		motor[motorB] = -puissB * reverse;
 	}
+	// Or right
 	else
 	{
 		motor[motorA] = -puissA * reverse;
@@ -1000,6 +1032,13 @@ void turnDeg_private(int degree, char droit)
 	}
 }
 
+
+
+// ----------------------------------------------------------------------------------------------------------------------------------
+// ------------------------------------------- Fonctions appelees dans le main ------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------------------------------------
+
+
 task turnRightDegT()
 {
 	mvt_fait = 2;
@@ -1013,6 +1052,9 @@ task turnRightDegT()
 
 void turnRightDeg(float angle, float *rotation_parcourue, char *done, int temps = 0, char offset = 100)
 {
+	// Gere la rotation sur place du robot. A appeler dans le main. 
+	// Possede egalement les securites pour le blocage des roues avec les timers.
+	
 	char old_offset = offset_motor;
 	if(offset != 100)
 		offset_motor = offset;
@@ -1022,7 +1064,7 @@ void turnRightDeg(float angle, float *rotation_parcourue, char *done, int temps 
 	
 	if(temps == 0)
 	{
-		// On ne fait rien d'autre que tourner. A remarquer qu'aucune information n'est retournee. 
+		// On ne fait rien d'autre que tourner. A remarquer qu'aucune information n'est retournee. Tous est mis a jour dans des variables globales.
 		// On ne donne donc rien sur done ni sur distance_parcourue.
 		turnDeg_private(angle, 1);
 		if(mvt_fait == 2)
@@ -1055,6 +1097,9 @@ void turnRightDeg(float angle, float *rotation_parcourue, char *done, int temps 
 
 task turnLeftDegT()
 {
+	// Gere la rotation sur place du robot. A appeler dans le main. 
+	// Possede egalement les securites pour le blocage des roues avec les timers.
+	
 	mvt_fait = 2;
 	rotation_faite = 0;
 	turnDeg_private(rotation_a_faire, 0);
@@ -1106,26 +1151,3 @@ void turnLeftDeg(float angle, float *rotation_parcourue, char *done, int temps =
 	offset_motor = old_offset;
 }
 
-/*
-// Code de test
-	//turnLeftDeg(90*2, 0);
-	wait1Msec(100);
-	avance_nulle(100);
-	wait1Msec(100);
-	turnLeftDeg(90*2, 0);
-	wait1Msec(100);
-	avance_nulle(100);
-	wait1Msec(100);
-	turnLeftDeg(90*2, 0);
-	wait1Msec(400);
-	turnRightDeg(90*2, 0);
-	wait1Msec(100);
-	avance_nulle(100);
-	wait1Msec(100);
-	turnRightDeg(90*2, 0);
-	wait1Msec(100);
-	avance_nulle(100);
-	wait1Msec(100);
-	turnRightDeg(90*2, 0);
-	wait1Msec(100);
-*/
